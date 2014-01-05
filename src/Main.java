@@ -1,23 +1,76 @@
 import java.util.*;
 
 public class Main {
+    /**
+     * ジャイ夫の家
+     */
+    private static final JaiosHome jaiosHome;
+
+    /**
+     * 心の友の家
+     */
+    private static final List<Home> friendsHomes;
+
+    /**
+     * ある家から他の家までの移動時間のリスト
+     */
+    public static final Map<Home, List<HomeAndTravelTime>> travelTimeMap;
+
+    static {
+        final int[][] TravelTimes = {
+                {0, 10, 20, 7, 15, 24, 18, 22},
+                {10, 0, 11, 5, 8, 20, 21, 15},
+                {20, 11, 0, 10, 12, 6, 25, 20},
+                {7, 5, 10, 0, 9, 17, 15, 13},
+                {15, 8, 12, 9, 0, 7, 10, 6},
+                {24, 20, 6, 17, 7, 0, 14, 10},
+                {18, 21, 25, 15, 10, 14, 0, 5},
+                {22, 15, 20, 13, 6, 10, 5, 0},
+        };
+
+        // 地図上の家のセットアップ
+        jaiosHome = new JaiosHome(0, 'A');
+        int id;
+        char name;
+        List<Home> tmpList = new ArrayList<>();
+        for (id = 1, name = 'B'; id < 8; id++, name++) {
+            tmpList.add(new FriendsHome(id, name));
+        }
+        friendsHomes = Collections.unmodifiableList(tmpList);
+
+        // ある家から他の家への移動時間のセットアップ
+        Map<Home, List<HomeAndTravelTime>> tmpMap = new HashMap<>();
+        List<Home> homesOnMap = new LinkedList<>();
+        homesOnMap.add(jaiosHome);
+        homesOnMap.addAll(friendsHomes);
+        for (id = 0; id < homesOnMap.size(); id++) {
+            Home from = homesOnMap.get(id);
+            int[] travelTime = TravelTimes[from.getId()];
+            List<HomeAndTravelTime> travelTimeList = new ArrayList<>();
+            for (int i = 0; i < travelTime.length; i++) {
+                if (travelTime[i] == 0) continue;
+
+                travelTimeList.add(new HomeAndTravelTime( homesOnMap.get(i), travelTime[i]));
+            }
+            tmpMap.put(from, travelTimeList);
+        }
+        travelTimeMap = Collections.unmodifiableMap(tmpMap);
+    }
+
     public static void main(String args[]) {
-        HomesMap map = new HomesMap();
-        Jaio jaio = new Jaio(map.getJaiosHome(), map);
-        TravelTime totalTime = new TravelTime(0);
+        Jaio jaio = new Jaio(jaiosHome, friendsHomes);
 
         while(!jaio.isGetsComplete()) {
             HomeAndTravelTime visitHomeAndTime = jaio.next();
-            jaio.gets((FriendsHome)visitHomeAndTime.getHome());
-            totalTime = totalTime.add(visitHomeAndTime.getTime());
-            System.out.println("経過時間：" + totalTime.getTime());
+            jaio.gets(visitHomeAndTime);
         }
+        jaio.goHome();
 
-        HomeAndTravelTime myhomeAndTime = jaio.goHome();
-        totalTime = totalTime.add(myhomeAndTime.getTime());
-
-        System.out.println("合計時間：" + totalTime.getTime());
-
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, 15);
+        cal.set(Calendar.MINUTE, 0);
+        cal.add(Calendar.MINUTE, jaio.getTotalTime().getTime());
+        System.out.println("帰宅時間：" + cal.get(Calendar.HOUR_OF_DAY) + ":" + cal.get(Calendar.MINUTE));
     }
 }
 
@@ -55,9 +108,7 @@ class Home {
 
         Home home = (Home) o;
 
-        if (id != home.id) return false;
-
-        return true;
+        return id == home.id;
     }
 
     @Override
@@ -70,7 +121,6 @@ class Home {
  * ジャイ夫君の家
  */
 class JaiosHome extends Home {
-
     JaiosHome(int id, char name) {
         super(id, name);
     }
@@ -83,16 +133,12 @@ class FriendsHome extends Home {
     FriendsHome(int id, char name) {
         super(id, name);
     }
-
-    public void visit() {
-
-    }
 }
 
 /**
  * 移動時間
  */
-class TravelTime {
+class TravelTime implements Comparable<TravelTime> {
     private final int time;
 
     public TravelTime(int time) {
@@ -106,76 +152,10 @@ class TravelTime {
     public TravelTime add(TravelTime travelTime) {
         return new TravelTime(this.time + travelTime.time);
     }
-}
 
-/**
- * 家と距離の地図
- */
-class HomesMap {
-    /**
-     * ジャイ夫の家
-     */
-    private JaiosHome jaiosHome;
-
-    /**
-     * 心の友の家
-     */
-    private List<FriendsHome> friendsHomes = new LinkedList<>();
-
-    public Home getJaiosHome() {
-        return jaiosHome;
-    }
-
-    List<FriendsHome> getFriendsHomes() {
-        return friendsHomes;
-    }
-
-    /**
-     * ある家から他の家までの移動時間のリスト
-     */
-    private Map<Home, List<HomeAndTravelTime>> travelTimeMap = new HashMap<>();
-
-
-    /** 指定された家から、他の家への距離のリストを取得する */
-    public List<HomeAndTravelTime> getTravelTimeList(Home from) {
-        return travelTimeMap.get(from);
-    }
-
-    public HomesMap() {
-        final int[][] TravelTimes = {
-                {0, 10, 20, 7, 15, 24, 18, 22},
-                {10, 0, 11, 5, 8, 20, 21, 15},
-                {20, 11, 0, 10, 12, 6, 25, 20},
-                {7, 5, 10, 0, 9, 17, 15, 13},
-                {15, 8, 12, 9, 0, 7, 10, 6},
-                {24, 20, 6, 17, 7, 0, 14, 10},
-                {18, 21, 25, 15, 10, 14, 0, 5},
-                {22, 15, 20, 13, 6, 10, 5, 0},
-        };
-
-        // 地図上の家のセットアップ
-        this.jaiosHome = new JaiosHome(0, 'A');
-        int id;
-        char name;
-        for (id = 1, name = 'B'; id < 8; id++, name++) {
-            this.friendsHomes.add(new FriendsHome(id, name));
-        }
-
-        // ある家から他の家への移動時間のセットアップ
-        List<Home> homesOnMap = new LinkedList<>();
-        homesOnMap.add(jaiosHome);
-        homesOnMap.addAll(friendsHomes);
-        for (id = 0; id < homesOnMap.size(); id++) {
-            Home from = homesOnMap.get(id);
-            int[] travelTime = TravelTimes[from.getId()];
-            List<HomeAndTravelTime> travelTimeList = new ArrayList<>();
-            for (int i = 0; i < travelTime.length; i++) {
-                if (travelTime[i] == 0) continue;
-
-                travelTimeList.add(new HomeAndTravelTime( homesOnMap.get(i), travelTime[i]));
-            }
-            this.travelTimeMap.put(from, travelTimeList);
-        }
+    @Override
+    public int compareTo(TravelTime o) {
+        return this.time - o.time;
     }
 }
 
@@ -200,27 +180,8 @@ class HomeAndTravelTime implements Comparable<HomeAndTravelTime>{
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null ) return false;
-        if (o instanceof Home) return this.getHome().equals(o);
-        if (getClass() != o.getClass()) return false;
-
-        HomeAndTravelTime that = (HomeAndTravelTime) o;
-
-        if (!home.equals(that.home)) return false;
-
-        return true;
-    }
-
-    @Override
-    public int hashCode() {
-        return home.hashCode();
-    }
-
-    @Override
     public int compareTo(HomeAndTravelTime t) {
-        return this.getTime().getTime() - t.getTime().getTime();
+        return this.getTime().compareTo(t.getTime());
     }
 }
 
@@ -228,24 +189,26 @@ class HomeAndTravelTime implements Comparable<HomeAndTravelTime>{
  * ジャイ夫君
  */
 class Jaio {
-    Jaio(Home currentPoint, HomesMap map ) {
-        this.currentPoint = currentPoint;
-        this.targetHomes = map.getFriendsHomes();
-        this.myHome = map.getJaiosHome();
-        this.map = map;
+    Jaio(Home jaiosHome, List<Home> friendsHomes) {
+        this.myHome = jaiosHome;
+        this.targetHomes = new ArrayList<>(friendsHomes);
+        this.currentPoint = this.myHome;
     }
 
     /** ジャイ夫君の家 */
-    private Home myHome;
+    private final Home myHome;
 
-    /** 地図 */
-    private HomesMap map;
+    /** ジャイ夫君がおせちをGet'sしに廻る家 */
+    private List<Home> targetHomes;
 
     /** ジャイ夫君の現在地 */
     private Home currentPoint;
 
-    /** ジャイ夫君がおせちをGet'sしに廻る家 */
-    private List<FriendsHome> targetHomes;
+    /** ジャイ夫君の移動時間 */
+    private TravelTime totalTime = new TravelTime(0);
+    TravelTime getTotalTime() {
+        return totalTime;
+    }
 
     /** 全ての家からGet'sしたかを返す */
     public boolean isGetsComplete() {
@@ -253,23 +216,47 @@ class Jaio {
     }
 
     /** おせちをGet'sする*/
-    public void gets(FriendsHome getsHome) {
-        System.out.println(getsHome.getName() + "でおせちをGet's.");
-        this.targetHomes.remove(getsHome);
-        this.currentPoint = getsHome;
+    public void gets(HomeAndTravelTime homeAndTime) {
+        this.totalTime = this.totalTime.add(homeAndTime.getTime());
+        this.currentPoint = homeAndTime.getHome();
+        System.out.println(this.currentPoint.getName() + "でおせちをGet's.");
+        boolean b = this.targetHomes.remove(this.currentPoint);
+        assert b;
     }
 
     /** 次にGet'sする家を決める */
     public HomeAndTravelTime next() {
-        List<HomeAndTravelTime> targets = new ArrayList<>(map.getTravelTimeList(this.currentPoint));
-        targets.retainAll(this.targetHomes);
+        List<HomeAndTravelTime> targets = getCandidateList();
         if(targets.isEmpty()) return null;
         return Collections.min(targets);
     }
 
-    public HomeAndTravelTime goHome() {
-        List<HomeAndTravelTime> travelTimeList = map.getTravelTimeList(this.currentPoint);
-        return travelTimeList.get(travelTimeList.indexOf(this.myHome));
+    /** 家に戻る */
+    public void goHome() {
+        HomeAndTravelTime homeAndTime = getHome();
+        System.out.println(this.myHome.getName() + "に帰宅");
+        this.totalTime = this.totalTime.add(homeAndTime.getTime());
     }
 
+    private HomeAndTravelTime getHome() {
+        for(HomeAndTravelTime homeAndTime : Main.travelTimeMap.get(this.currentPoint)) {
+            if(homeAndTime.getHome().equals(this.myHome)) return homeAndTime;
+        }
+        assert false;
+        return null;
+    }
+
+    /**
+     * 次のGet's先候補のリストを取得する
+     * @return 次のGet's先候補のリスト
+     */
+    private List<HomeAndTravelTime> getCandidateList() {
+        List<HomeAndTravelTime> list = new ArrayList<>();
+        for(HomeAndTravelTime homeAndTime : Main.travelTimeMap.get(this.currentPoint)) {
+            if(this.targetHomes.contains(homeAndTime.getHome())) {
+                list.add(homeAndTime);
+            }
+        }
+        return list;
+    }
 }
